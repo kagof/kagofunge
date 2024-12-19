@@ -4,35 +4,28 @@ import (
 	"io"
 )
 
-type Direction uint8
-
-const (
-	right Direction = iota
-	left  Direction = iota
-	down  Direction = iota
-	up    Direction = iota
-)
-
 type Befunge struct {
-	Stack          *Stack[int]
-	stringMode     bool
-	direction      Direction
-	Torus          *Torus
-	ProgramCounter *Coords
-	writer         io.Writer
-	reader         io.Reader
+	writer             io.Writer
+	reader             io.Reader
+	Stack              *Stack[int]
+	Torus              *Torus
+	InstructionPointer *Vector2
+	stringMode         bool
+	delta              *Vector2
+	halted             bool
 }
 
 func NewBefunge(s string, w io.Writer, r io.Reader) *Befunge {
 	torus := NewTorus(s)
 	return &Befunge{
-		Stack:          NewStack[int](),
-		stringMode:     false,
-		direction:      right,
-		Torus:          torus,
-		ProgramCounter: NewCoords(0, 0),
-		writer:         w,
-		reader:         r,
+		writer:             w,
+		reader:             r,
+		Stack:              NewStack[int](),
+		Torus:              torus,
+		InstructionPointer: NewVector2(0, 0),
+		stringMode:         false,
+		delta:              XPos(),
+		halted:             false,
 	}
 }
 
@@ -52,35 +45,30 @@ func (f *Befunge) stackPeek() int {
 	return 0
 }
 
-func (f *Befunge) BefungeProcess() (bool, error) {
+func (f *Befunge) Step() (bool, error) {
 	var err error
-	distToNext := 1
-	stopped := false
-	char := f.Torus.CharAt(f.ProgramCounter.X, f.ProgramCounter.Y)
+	char := f.Torus.CharAt(f.InstructionPointer.X, f.InstructionPointer.Y)
 	if f.stringMode && char != '"' {
 		f.Stack.Push(int(char))
 	} else {
 		instruction := ParseInstruction(char)
-		stopped, distToNext, err = instruction.PerformInstruction(f)
+		err = instruction.PerformInstruction(f)
 	}
-	if stopped {
+	if f.halted {
 		return false, mapErr(f, err)
 	}
-	f.step(distToNext)
+	f.step()
 	return true, nil
 }
 
-func (f *Befunge) step(distToNext int) {
-	switch f.direction {
-	case right:
-		f.ProgramCounter.X = f.Torus.ModWidth(f.ProgramCounter.X + distToNext)
-	case left:
-		f.ProgramCounter.X = f.Torus.ModWidth(f.ProgramCounter.X - distToNext)
-	case down:
-		f.ProgramCounter.Y = f.Torus.ModHeight(f.ProgramCounter.Y + distToNext)
-	case up:
-		f.ProgramCounter.Y = f.Torus.ModHeight(f.ProgramCounter.Y - distToNext)
+func (f *Befunge) step() {
+	if f.delta.X != 0 { //saving some modulus operations
+		f.InstructionPointer.X = f.Torus.ModWidth(f.InstructionPointer.X + f.delta.X)
 	}
+	if f.delta.Y != 0 { //saving some modulus operations
+		f.InstructionPointer.Y = f.Torus.ModHeight(f.InstructionPointer.Y + f.delta.Y)
+	}
+	f.delta = f.delta.ScaleToOne()
 }
 
 func mapErr(funge *Befunge, err error) error {
@@ -88,9 +76,9 @@ func mapErr(funge *Befunge, err error) error {
 		return nil
 	}
 	return &BefungeExecutionError{
-		X:   funge.ProgramCounter.X,
-		Y:   funge.ProgramCounter.Y,
-		Val: funge.Torus.CharAt(funge.ProgramCounter.X, funge.ProgramCounter.Y),
+		X:   funge.InstructionPointer.X,
+		Y:   funge.InstructionPointer.Y,
+		Val: funge.Torus.CharAt(funge.InstructionPointer.X, funge.InstructionPointer.Y),
 		Err: err,
 	}
 }

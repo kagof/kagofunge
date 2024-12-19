@@ -26,13 +26,13 @@ var (
 
 type Debugger struct {
 	befunge     *model.Befunge
-	breakpoints []model.Coords
+	breakpoints []model.Vector2
 	output      *strings.Builder
 	stdout      io.Writer
 	stepMode    bool
 }
 
-func NewDebugger(s string, stdout io.Writer, stdin io.Reader, breakpoints []model.Coords) *Debugger {
+func NewDebugger(s string, stdout io.Writer, stdin io.Reader, breakpoints []model.Vector2) *Debugger {
 	b := new(strings.Builder)
 	return &Debugger{
 		befunge:     model.NewBefunge(s, b, stdin),
@@ -42,8 +42,8 @@ func NewDebugger(s string, stdout io.Writer, stdin io.Reader, breakpoints []mode
 	}
 }
 
-func (d *Debugger) BefungeProcess() (bool, error) {
-	if d.stepMode || slices.Contains(d.breakpoints, *d.befunge.ProgramCounter) {
+func (d *Debugger) Step() (bool, error) {
+	if d.stepMode || slices.Contains(d.breakpoints, *d.befunge.InstructionPointer) {
 		d.printDebug2()
 		str, err := bufio.NewReader(os.Stdin).ReadString('\n')
 		if err != nil {
@@ -56,7 +56,7 @@ func (d *Debugger) BefungeProcess() (bool, error) {
 			d.stepMode = false
 		}
 	}
-	proceed, err := d.befunge.BefungeProcess()
+	proceed, err := d.befunge.Step()
 	if !proceed {
 		fmt.Println(clearAndReturn)
 		_, err := fmt.Fprint(d.stdout, d.output.String())
@@ -78,11 +78,11 @@ func (d *Debugger) printDebug2() {
 %s: %s
 [%s to continue, %s to step, %s to exit]`,
 		bold.Sprint("x"),
-		d.befunge.ProgramCounter.X,
+		d.befunge.InstructionPointer.X,
 		bold.Sprint("y"),
-		d.befunge.ProgramCounter.Y,
+		d.befunge.InstructionPointer.Y,
 		bold.Sprint("char"),
-		d.befunge.Torus.CharAt(d.befunge.ProgramCounter.X, d.befunge.ProgramCounter.Y),
+		d.befunge.Torus.CharAt(d.befunge.InstructionPointer.X, d.befunge.InstructionPointer.Y),
 		bold.Sprint("torus"),
 		d.torusToString(),
 		bold.Sprint("stack"),
@@ -105,10 +105,10 @@ func (d *Debugger) torusToString() string {
 	for y, line := range torus.Chars {
 		strBuilder.WriteString(cyan.Sprint("║"))
 		for x, char := range line {
-			currentPointer := *model.NewCoords(x, y)
+			currentPointer := *model.NewVector2(x, y)
 			out := string(char)
 			isBreakpoint := slices.Contains(d.breakpoints, currentPointer)
-			isCursor := *d.befunge.ProgramCounter == currentPointer
+			isCursor := *d.befunge.InstructionPointer == currentPointer
 			if isBreakpoint && isCursor {
 				if char == ' ' {
 					out = redBgAndBoldAndUnderlined.Sprint(out)

@@ -12,7 +12,7 @@ import (
 
 type CommandArgs struct {
 	DebugMode   bool
-	Breakpoints []model.Coords
+	Breakpoints []model.Vector2
 	Out         io.Writer
 	In          io.Reader
 	Funge       string
@@ -89,7 +89,7 @@ func GetCommandArgs() (*CommandArgs, func(), error) {
 	}, flag.Usage, nil
 }
 
-type breakpointList []model.Coords
+type breakpointList []model.Vector2
 
 func (b *breakpointList) String() string {
 	stringSlice := make([]string, len(*b))
@@ -100,7 +100,7 @@ func (b *breakpointList) String() string {
 }
 
 func (b *breakpointList) Set(value string) error {
-	bp, err := model.ParseCoords(value)
+	bp, err := model.ParseVector2(value)
 	if err != nil {
 		return err
 	}

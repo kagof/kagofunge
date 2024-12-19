@@ -16,7 +16,7 @@ func main() {
 		usage()
 		l.Fatalln(err)
 	}
-	var befunge BefungeProcessor
+	var befunge Stepper
 	if args.DebugMode {
 		befunge = debug.NewDebugger(args.Funge, args.Out, args.In, args.Breakpoints)
 	} else {
@@ -29,7 +29,7 @@ func main() {
 
 	proceed := true
 	for proceed {
-		proceed, err = befunge.BefungeProcess()
+		proceed, err = befunge.Step()
 		if err != nil {
 			l.Fatalln(err)
 		}

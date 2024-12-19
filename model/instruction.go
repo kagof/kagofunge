@@ -5,168 +5,198 @@ import (
 	"fmt"
 	"io"
 	"math/rand/v2"
+	"strings"
 )
 
 type InstructionPerformer interface {
-	PerformInstruction(f *Befunge) (bool, int, error)
+	PerformInstruction(f *Befunge) error
 }
 
 type stringMode struct {
 }
 
-func (s stringMode) PerformInstruction(f *Befunge) (bool, int, error) {
+func (s stringMode) PerformInstruction(f *Befunge) error {
 	f.stringMode = !f.stringMode
-	return false, 1, nil
+	return nil
 }
 
 type num struct {
 	val int
 }
 
-func (n num) PerformInstruction(f *Befunge) (bool, int, error) {
+func (n num) PerformInstruction(f *Befunge) error {
 	f.Stack.Push(n.val)
-	return false, 1, nil
+	return nil
 }
 
 type op2 struct {
 	operator func(int, int) (int, error)
 }
 
-func (o op2) PerformInstruction(f *Befunge) (bool, int, error) {
+func (o op2) PerformInstruction(f *Befunge) error {
 	a, b := f.stackPop(), f.stackPop()
 	res, err := o.operator(a, b)
 	if err != nil {
-		return true, 1, err
+		if strings.Contains(err.Error(), "divide by zero") {
+			// the befunge spec states that division/modulus by 0 should result in asking the user for desired outcome
+			return intRead.PerformInstruction(f)
+		} else {
+			return err
+		}
 	}
 	f.Stack.Push(res)
-	return false, 1, nil
+	return nil
 }
 
 type not struct {
 }
 
-func (n not) PerformInstruction(f *Befunge) (bool, int, error) {
+func (n not) PerformInstruction(f *Befunge) error {
 	if f.stackPop() == 0 {
 		f.Stack.Push(1)
 	} else {
 		f.Stack.Push(0)
 	}
-	return false, 1, nil
+	return nil
 }
 
 type dir struct {
-	direction func() Direction
+	delta func() *Vector2
 }
 
-func (d dir) PerformInstruction(f *Befunge) (bool, int, error) {
-	f.direction = d.direction()
-	return false, 1, nil
+func (d dir) PerformInstruction(f *Befunge) error {
+	f.delta = d.delta()
+	return nil
 }
 
 type conditionalDir struct {
-	zeroDir Direction
-	elseDir Direction
+	zeroDir *Vector2
+	elseDir *Vector2
 }
 
-func (d conditionalDir) PerformInstruction(f *Befunge) (bool, int, error) {
+func (d conditionalDir) PerformInstruction(f *Befunge) error {
 	if f.stackPop() == 0 {
-		f.direction = d.zeroDir
+		f.delta = d.zeroDir
 	} else {
-		f.direction = d.elseDir
+		f.delta = d.elseDir
 	}
-	return false, 1, nil
+	return nil
 }
 
 type dup struct {
 }
 
-func (d dup) PerformInstruction(f *Befunge) (bool, int, error) {
+func (d dup) PerformInstruction(f *Befunge) error {
 	f.Stack.Push(f.stackPeek())
-	return false, 1, nil
+	return nil
 }
 
 type swap struct {
 }
 
-func (s swap) PerformInstruction(f *Befunge) (bool, int, error) {
+func (s swap) PerformInstruction(f *Befunge) error {
 	a, b := f.stackPop(), f.stackPop()
 	f.Stack.Push(a)
 	f.Stack.Push(b)
-	return false, 1, nil
+	return nil
 }
 
 type discard struct {
 }
 
-func (d discard) PerformInstruction(f *Befunge) (bool, int, error) {
+func (d discard) PerformInstruction(f *Befunge) error {
 	f.stackPop()
-	return false, 1, nil
+	return nil
 }
 
 type write struct {
 	writeFun func(io.Writer, int) (int, error)
 }
 
-func (w write) PerformInstruction(f *Befunge) (bool, int, error) {
+func (w write) PerformInstruction(f *Befunge) error {
 	_, err := w.writeFun(f.writer, f.stackPop())
 	if err != nil {
-		return true, 1, err
+		f.halted = true
+		return err
 	}
-	return false, 1, nil
+	return nil
 }
 
 type skip struct {
 }
 
-func (s skip) PerformInstruction(f *Befunge) (bool, int, error) {
-	return false, 2, nil
+func (s skip) PerformInstruction(f *Befunge) error {
+	f.delta = f.delta.Add(f.delta)
+	return nil
 }
 
 type put struct {
 }
 
-func (p put) PerformInstruction(f *Befunge) (bool, int, error) {
+func (p put) PerformInstruction(f *Befunge) error {
 	y, x, v := f.stackPop(), f.stackPop(), rune(f.stackPop())
 	f.Torus.SetCharAt(x, y, v)
-	return false, 1, nil
+	return nil
 }
 
 type get struct {
 }
 
-func (g get) PerformInstruction(f *Befunge) (bool, int, error) {
+func (g get) PerformInstruction(f *Befunge) error {
 	y, x := f.stackPop(), f.stackPop()
 	f.Stack.Push(int(f.Torus.CharAt(x, y)))
-	return false, 1, nil
+	return nil
 }
 
 type read struct {
 	readFun func(io.Reader) (int, int, error)
 }
 
-func (r read) PerformInstruction(f *Befunge) (bool, int, error) {
+func (r read) PerformInstruction(f *Befunge) error {
 	i, _, err := r.readFun(f.reader)
 	if err == nil {
 		f.Stack.Push(i)
-		return false, 1, nil
+		return nil
 	} else {
-		return true, 1, err
+		f.halted = true
+		return err
 	}
 }
 
 type terminate struct {
 }
 
-func (t terminate) PerformInstruction(f *Befunge) (bool, int, error) {
-	return true, 1, nil
+func (t terminate) PerformInstruction(f *Befunge) error {
+	f.halted = true
+	return nil
 }
 
 type noop struct {
 }
 
-func (n noop) PerformInstruction(f *Befunge) (bool, int, error) {
-	return false, 1, nil
+func (n noop) PerformInstruction(f *Befunge) error {
+	return nil
 }
+
+var intWrite = write{writeFun: func(w io.Writer, a int) (int, error) {
+	return fmt.Fprintf(w, "%d ", a)
+}}
+
+var charWrite = write{writeFun: func(w io.Writer, a int) (int, error) {
+	return fmt.Fprint(w, string(rune(a)))
+}}
+
+var intRead = read{readFun: func(r io.Reader) (int, int, error) {
+	var i int
+	n, err := fmt.Fscanf(r, "%d\n", &i)
+	return i, n, err
+}}
+
+var charRead = read{readFun: func(r io.Reader) (int, int, error) {
+	var ch rune
+	n, err := fmt.Fscanf(r, "%c\n", &ch)
+	return int(ch), n, err
+}}
 
 func ParseInstruction(char rune) InstructionPerformer {
 	switch {
@@ -205,34 +235,45 @@ func ParseInstruction(char rune) InstructionPerformer {
 			return boolToInt(b > a), nil
 		}}
 	case char == '>':
-		return dir{direction: func() Direction {
-			return right
+		return dir{delta: func() *Vector2 {
+			return XPos()
 		}}
 	case char == '<':
-		return dir{direction: func() Direction {
-			return left
+		return dir{delta: func() *Vector2 {
+			return XNeg()
 		}}
 	case char == 'v':
-		return dir{direction: func() Direction {
-			return down
+		return dir{delta: func() *Vector2 {
+			return YPos()
 		}}
 	case char == '^':
-		return dir{direction: func() Direction {
-			return up
+		return dir{delta: func() *Vector2 {
+			return YNeg()
 		}}
 	case char == '?':
-		return dir{direction: func() Direction {
-			return Direction(rand.IntN(4))
+		return dir{delta: func() *Vector2 {
+			switch rand.IntN(4) {
+			case 0:
+				return XPos()
+			case 1:
+				return XNeg()
+			case 2:
+				return YPos()
+			case 3:
+				fallthrough
+			default:
+				return YNeg()
+			}
 		}}
 	case char == '_':
 		return conditionalDir{
-			zeroDir: right,
-			elseDir: left,
+			zeroDir: XPos(),
+			elseDir: XNeg(),
 		}
 	case char == '|':
 		return conditionalDir{
-			zeroDir: down,
-			elseDir: up,
+			zeroDir: YPos(),
+			elseDir: YNeg(),
 		}
 	case char == '"':
 		return stringMode{}
@@ -243,13 +284,9 @@ func ParseInstruction(char rune) InstructionPerformer {
 	case char == '$':
 		return discard{}
 	case char == '.':
-		return write{writeFun: func(w io.Writer, a int) (int, error) {
-			return fmt.Fprintf(w, "%d ", a)
-		}}
+		return intWrite
 	case char == ',':
-		return write{writeFun: func(w io.Writer, a int) (int, error) {
-			return fmt.Fprint(w, string(rune(a)))
-		}}
+		return charWrite
 	case char == '#':
 		return skip{}
 	case char == 'p':
@@ -257,17 +294,9 @@ func ParseInstruction(char rune) InstructionPerformer {
 	case char == 'g':
 		return get{}
 	case char == '&':
-		return read{readFun: func(r io.Reader) (int, int, error) {
-			var i int
-			n, err := fmt.Fscanf(r, "%d\n", &i)
-			return i, n, err
-		}}
+		return intRead
 	case char == '~':
-		return read{readFun: func(r io.Reader) (int, int, error) {
-			var ch rune
-			n, err := fmt.Fscanf(r, "%c\n", &ch)
-			return int(ch), n, err
-		}}
+		return charRead
 	case char == '@':
 		return terminate{}
 	default:
