@@ -1,4 +1,6 @@
 .idea/
 gofunge
 gofunge.exe
+kagofunge
+kagofunge.exe
 *.bf

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/kagof/gofunge/model"
+	"github.com/kagof/kagofunge/model"
 	"io"
 	"os"
 	"strings"

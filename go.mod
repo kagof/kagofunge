@@ -1,4 +1,4 @@
-module github.com/kagof/gofunge
+module github.com/kagof/kagofunge
 
 go 1.23
 

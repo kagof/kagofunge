@@ -1,4 +1,4 @@
-# Gofunge
+# kagofunge
 
 An interpreter & debugger written in Go for the Befunge-93 esoteric programming language.
 
@@ -16,15 +16,15 @@ The only non-stdlib dependency of this program is [`github.com/fatih/color v1.18
 ## Usage
 Once you have a binary, the usage is as follows:
 ```
-Usage of gofunge:
-gofunge [OPTIONS] befungeFile
+Usage of kagofunge:
+kagofunge [OPTIONS] befungeFile
 
 Examples:
-         gofunge filename.bf
-         gofunge -debug -breakpoint '(0,0)' filename.bf
-         gofunge -debug -breakpoint 0,0 -breakpoint 1,2 filename.bf
-         gofunge -i input.txt -o output.txt filename.bf
-         gofunge -inline '"olleh",,,,,@'
+         kagofunge filename.bf
+         kagofunge -debug -breakpoint '(0,0)' filename.bf
+         kagofunge -debug -breakpoint 0,0 -breakpoint 1,2 filename.bf
+         kagofunge -i input.txt -o output.txt filename.bf
+         kagofunge -inline '"olleh",,,,,@'
 
   -breakpoint value
         Breakpoints in the program, if in debug mode. Multiple supported
@@ -70,3 +70,4 @@ There is also a more ambitious spec for Funge-98, which defines many more contro
 * the [Befunge-93 spec](https://codeberg.org/catseye/Befunge-93/src/branch/master/doc/Befunge-93.markdown)
 * my repo of [Befunge-93 programs](https://github.com/kagof/BefungeRepo)
 * my (largely abandoned) Befunge-93 [extension for VSCode](https://marketplace.visualstudio.com/items?itemName=kagof.befunge)
+* [gofunge98](https://github.com/adyxax/gofunge98), an unrelated Funge-98 intepretter in Go. This project has been renamed from Gofunge to kagofunge to avoid any confusion

@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/fatih/color"
-	"github.com/kagof/gofunge/model"
+	"github.com/kagof/kagofunge/model"
 	"io"
 	"os"
 	"slices"

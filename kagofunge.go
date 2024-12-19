@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/kagof/gofunge/internal/cmdline"
-	"github.com/kagof/gofunge/internal/debug"
-	"github.com/kagof/gofunge/model"
+	"github.com/kagof/kagofunge/internal/cmdline"
+	"github.com/kagof/kagofunge/internal/debug"
+	"github.com/kagof/kagofunge/model"
 	"io"
 	"log"
 	"os"
