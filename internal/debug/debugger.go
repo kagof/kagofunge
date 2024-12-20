@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/fatih/color"
-	"github.com/kagof/kagofunge/model"
+	"github.com/kagof/kagofunge/pkg"
 	"io"
 	"os"
 	"slices"
@@ -25,17 +25,18 @@ var (
 )
 
 type Debugger struct {
-	befunge     *model.Befunge
-	breakpoints []model.Vector2
+	befunge     *pkg.Befunge
+	breakpoints []pkg.Vector2
 	output      *strings.Builder
 	stdout      io.Writer
 	stepMode    bool
+	hasPrinted  bool
 }
 
-func NewDebugger(s string, stdout io.Writer, stdin io.Reader, breakpoints []model.Vector2) *Debugger {
+func NewDebugger(s string, stdout io.Writer, stdin io.Reader, breakpoints []pkg.Vector2) *Debugger {
 	b := new(strings.Builder)
 	return &Debugger{
-		befunge:     model.NewBefunge(s, b, stdin),
+		befunge:     pkg.NewBefunge(s, b, stdin),
 		breakpoints: breakpoints,
 		output:      b,
 		stdout:      stdout,
@@ -44,7 +45,8 @@ func NewDebugger(s string, stdout io.Writer, stdin io.Reader, breakpoints []mode
 
 func (d *Debugger) Step() (bool, error) {
 	if d.stepMode || slices.Contains(d.breakpoints, *d.befunge.InstructionPointer) {
-		d.printDebug2()
+		d.printDebug()
+		d.hasPrinted = true
 		str, err := bufio.NewReader(os.Stdin).ReadString('\n')
 		if err != nil {
 			panic(err)
@@ -58,7 +60,9 @@ func (d *Debugger) Step() (bool, error) {
 	}
 	proceed, err := d.befunge.Step()
 	if !proceed {
-		fmt.Println(clearAndReturn)
+		if d.hasPrinted {
+			fmt.Println(clearAndReturn)
+		}
 		_, err := fmt.Fprint(d.stdout, d.output.String())
 		if err != nil {
 			panic(err)
@@ -67,7 +71,7 @@ func (d *Debugger) Step() (bool, error) {
 	return proceed, err
 }
 
-func (d *Debugger) printDebug2() {
+func (d *Debugger) printDebug() {
 	fmt.Println(clearAndReturn)
 	fmt.Printf(`%s: %d %s: %d %s: '%c'
 
@@ -105,7 +109,7 @@ func (d *Debugger) torusToString() string {
 	for y, line := range torus.Chars {
 		strBuilder.WriteString(cyan.Sprint("║"))
 		for x, char := range line {
-			currentPointer := *model.NewVector2(x, y)
+			currentPointer := *pkg.NewVector2(x, y)
 			out := string(char)
 			isBreakpoint := slices.Contains(d.breakpoints, currentPointer)
 			isCursor := *d.befunge.InstructionPointer == currentPointer

@@ -1,0 +1,312 @@
+package pkg
+
+import (
+	"errors"
+	"fmt"
+	"io"
+	"math/rand/v2"
+	"strings"
+)
+
+type InstructionPerformer interface {
+	PerformInstruction(f *Befunge) error
+}
+
+type stringMode struct {
+}
+
+func (s stringMode) PerformInstruction(f *Befunge) error {
+	f.stringMode = !f.stringMode
+	return nil
+}
+
+type num struct {
+	val int
+}
+
+func (n num) PerformInstruction(f *Befunge) error {
+	f.Stack.Push(n.val)
+	return nil
+}
+
+type op2 struct {
+	operator func(int, int) (int, error)
+}
+
+func (o op2) PerformInstruction(f *Befunge) error {
+	a, b := f.stackPop(), f.stackPop()
+	res, err := o.operator(a, b)
+	if err != nil {
+		if strings.Contains(err.Error(), "divide by zero") {
+			// the befunge spec states that division/modulus by 0 should result in asking the user for desired outcome
+			return intRead.PerformInstruction(f)
+		} else {
+			return err
+		}
+	}
+	f.Stack.Push(res)
+	return nil
+}
+
+type not struct {
+}
+
+func (n not) PerformInstruction(f *Befunge) error {
+	if f.stackPop() == 0 {
+		f.Stack.Push(1)
+	} else {
+		f.Stack.Push(0)
+	}
+	return nil
+}
+
+type dir struct {
+	delta func() *Vector2
+}
+
+func (d dir) PerformInstruction(f *Befunge) error {
+	f.delta = d.delta()
+	return nil
+}
+
+type conditionalDir struct {
+	zeroDir *Vector2
+	elseDir *Vector2
+}
+
+func (d conditionalDir) PerformInstruction(f *Befunge) error {
+	if f.stackPop() == 0 {
+		f.delta = d.zeroDir
+	} else {
+		f.delta = d.elseDir
+	}
+	return nil
+}
+
+type dup struct {
+}
+
+func (d dup) PerformInstruction(f *Befunge) error {
+	f.Stack.Push(f.stackPeek())
+	return nil
+}
+
+type swap struct {
+}
+
+func (s swap) PerformInstruction(f *Befunge) error {
+	a, b := f.stackPop(), f.stackPop()
+	f.Stack.Push(a)
+	f.Stack.Push(b)
+	return nil
+}
+
+type discard struct {
+}
+
+func (d discard) PerformInstruction(f *Befunge) error {
+	f.stackPop()
+	return nil
+}
+
+type write struct {
+	writeFun func(io.Writer, int) (int, error)
+}
+
+func (w write) PerformInstruction(f *Befunge) error {
+	_, err := w.writeFun(f.writer, f.stackPop())
+	if err != nil {
+		f.halted = true
+		return err
+	}
+	return nil
+}
+
+type skip struct {
+}
+
+func (s skip) PerformInstruction(f *Befunge) error {
+	f.delta = f.delta.Add(f.delta)
+	return nil
+}
+
+type put struct {
+}
+
+func (p put) PerformInstruction(f *Befunge) error {
+	y, x, v := f.stackPop(), f.stackPop(), rune(f.stackPop())
+	f.Torus.SetCharAt(x, y, v)
+	return nil
+}
+
+type get struct {
+}
+
+func (g get) PerformInstruction(f *Befunge) error {
+	y, x := f.stackPop(), f.stackPop()
+	f.Stack.Push(int(f.Torus.CharAt(x, y)))
+	return nil
+}
+
+type read struct {
+	readFun func(io.Reader) (int, int, error)
+}
+
+func (r read) PerformInstruction(f *Befunge) error {
+	i, _, err := r.readFun(f.reader)
+	if err == nil {
+		f.Stack.Push(i)
+		return nil
+	} else {
+		f.halted = true
+		return err
+	}
+}
+
+type terminate struct {
+}
+
+func (t terminate) PerformInstruction(f *Befunge) error {
+	f.halted = true
+	return nil
+}
+
+type noop struct {
+}
+
+func (n noop) PerformInstruction(f *Befunge) error {
+	return nil
+}
+
+var intWrite = write{writeFun: func(w io.Writer, a int) (int, error) {
+	return fmt.Fprintf(w, "%d ", a)
+}}
+
+var charWrite = write{writeFun: func(w io.Writer, a int) (int, error) {
+	return fmt.Fprint(w, string(rune(a)))
+}}
+
+var intRead = read{readFun: func(r io.Reader) (int, int, error) {
+	var i int
+	n, err := fmt.Fscanf(r, "%d\n", &i)
+	return i, n, err
+}}
+
+var charRead = read{readFun: func(r io.Reader) (int, int, error) {
+	var ch rune
+	n, err := fmt.Fscanf(r, "%c\n", &ch)
+	return int(ch), n, err
+}}
+
+func ParseInstruction(char rune) InstructionPerformer {
+	switch {
+	case '0' <= char && char <= '9':
+		return num{val: int(char - '0')}
+	case char == '+':
+		return op2{operator: func(a int, b int) (int, error) {
+			return a + b, nil
+		}}
+	case char == '-':
+		return op2{operator: func(a int, b int) (int, error) {
+			return b - a, nil
+		}}
+	case char == '*':
+		return op2{operator: func(a int, b int) (int, error) {
+			return a * b, nil
+		}}
+	case char == '/':
+		return op2{operator: func(a int, b int) (int, error) {
+			if a == 0 {
+				return 0, errors.New("divide by zero")
+			}
+			return b / a, nil
+		}}
+	case char == '%':
+		return op2{operator: func(a int, b int) (int, error) {
+			if a == 0 {
+				return 0, errors.New("divide by zero")
+			}
+			return b % a, nil
+		}}
+	case char == '!':
+		return not{}
+	case char == '`':
+		return op2{operator: func(a int, b int) (int, error) {
+			return boolToInt(b > a), nil
+		}}
+	case char == '>':
+		return dir{delta: func() *Vector2 {
+			return XPos()
+		}}
+	case char == '<':
+		return dir{delta: func() *Vector2 {
+			return XNeg()
+		}}
+	case char == 'v':
+		return dir{delta: func() *Vector2 {
+			return YPos()
+		}}
+	case char == '^':
+		return dir{delta: func() *Vector2 {
+			return YNeg()
+		}}
+	case char == '?':
+		return dir{delta: func() *Vector2 {
+			switch rand.IntN(4) {
+			case 0:
+				return XPos()
+			case 1:
+				return XNeg()
+			case 2:
+				return YPos()
+			case 3:
+				fallthrough
+			default:
+				return YNeg()
+			}
+		}}
+	case char == '_':
+		return conditionalDir{
+			zeroDir: XPos(),
+			elseDir: XNeg(),
+		}
+	case char == '|':
+		return conditionalDir{
+			zeroDir: YPos(),
+			elseDir: YNeg(),
+		}
+	case char == '"':
+		return stringMode{}
+	case char == ':':
+		return dup{}
+	case char == '\\':
+		return swap{}
+	case char == '$':
+		return discard{}
+	case char == '.':
+		return intWrite
+	case char == ',':
+		return charWrite
+	case char == '#':
+		return skip{}
+	case char == 'p':
+		return put{}
+	case char == 'g':
+		return get{}
+	case char == '&':
+		return intRead
+	case char == '~':
+		return charRead
+	case char == '@':
+		return terminate{}
+	default:
+		return noop{}
+	}
+}
+
+func boolToInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
