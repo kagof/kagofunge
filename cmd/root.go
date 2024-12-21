@@ -85,7 +85,7 @@ func getInputFile(flags pflag.FlagSet) (io.Reader, error) {
 	if err != nil {
 		in = nil
 	} else if flag == "" {
-		in = os.Stdout
+		in = os.Stdin
 	} else {
 		// Open the file (create if it doesn't exist, with write-only access)
 		in, err = os.Open(flag)

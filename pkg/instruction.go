@@ -1,10 +1,12 @@
 package pkg
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"io"
 	"math/rand/v2"
+	"strconv"
 	"strings"
 )
 
@@ -149,11 +151,11 @@ func (g get) PerformInstruction(f *Befunge) error {
 }
 
 type read struct {
-	readFun func(io.Reader) (int, int, error)
+	readFun func(io.Reader) (int, error)
 }
 
 func (r read) PerformInstruction(f *Befunge) error {
-	i, _, err := r.readFun(f.reader)
+	i, err := r.readFun(f.reader)
 	if err == nil {
 		f.Stack.Push(i)
 		return nil
@@ -186,16 +188,29 @@ var charWrite = write{writeFun: func(w io.Writer, a int) (int, error) {
 	return fmt.Fprint(w, string(rune(a)))
 }}
 
-var intRead = read{readFun: func(r io.Reader) (int, int, error) {
-	var i int
-	n, err := fmt.Fscanf(r, "%d\n", &i)
-	return i, n, err
+var intRead = read{readFun: func(r io.Reader) (int, error) {
+	for {
+		b, _, err1 := bufio.NewReader(r).ReadLine()
+		// error reading from the Reader, return
+		if err1 != nil {
+			return 0, err1
+		}
+
+		// Try to convert the input to an integer. If it fails, re-prompt for input
+		num, err2 := strconv.Atoi(strings.TrimSpace(string(b)))
+		if err2 == nil {
+			// int parsed
+			return num, nil
+		}
+	}
 }}
 
-var charRead = read{readFun: func(r io.Reader) (int, int, error) {
-	var ch rune
-	n, err := fmt.Fscanf(r, "%c\n", &ch)
-	return int(ch), n, err
+var charRead = read{readFun: func(r io.Reader) (int, error) {
+	ch, _, err := bufio.NewReader(r).ReadRune()
+	if err != nil {
+		return 0, err
+	}
+	return int(ch), nil
 }}
 
 func ParseInstruction(char rune) InstructionPerformer {
