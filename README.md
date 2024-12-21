@@ -32,7 +32,11 @@ New-Item -Path "$GOPATH\bin\kgf.exe" -ItemType SymbolicLink -Target "$GOPATH\bin
 
 ### Dependencies
 
-The only non-stdlib direct dependencies of this program are [`github.com/fatih/color v1.18.0`](https://github.com/fatih/color) which is used to color the debugger output, and [`github.com/spf13/cobra v1.8.1`](https://github.com/spf13/cobra) used for the command-line.
+The only non-stdlib direct dependencies of this program are:
+
+* [`github.com/fatih/color v1.18.0`](https://github.com/fatih/color) used to color the debugger output
+* [`github.com/spf13/cobra v1.8.1`](https://github.com/spf13/cobra) used for the CLI
+* [`github.com/stretchr/testify v1.10.0`](https://github.com/stretchr/testify) used for assertions in tests
 
 ## Usage
 
@@ -89,6 +93,14 @@ kagofunge debug hello-world.bf -o output.txt -i input.txt -b '[1,1]'
 There is a Terminal based debugger which can be used to step through the program, see the state of the code and the stack, and generally see how a Befunge-93 program is executing.
 
 ![debugging demo](img/_debug_demo.gif)
+
+## Testing
+
+The Go test suite can be executed by running
+
+```shell
+go test ./...
+```
 
 ## About Befunge
 

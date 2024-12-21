@@ -1,12 +1,13 @@
 package pkg
 
 import (
+	"bufio"
 	"io"
 )
 
 type Befunge struct {
 	writer             io.Writer
-	reader             io.Reader
+	reader             *bufio.Reader
 	Stack              *Stack[int]
 	Torus              *Torus
 	InstructionPointer *Vector2
@@ -19,7 +20,7 @@ func NewBefunge(s string, w io.Writer, r io.Reader) *Befunge {
 	torus := NewTorus(s)
 	return &Befunge{
 		writer:             w,
-		reader:             r,
+		reader:             bufio.NewReader(r),
 		Stack:              NewStack[int](),
 		Torus:              torus,
 		InstructionPointer: NewVector2(0, 0),

@@ -151,7 +151,7 @@ func (g get) PerformInstruction(f *Befunge) error {
 }
 
 type read struct {
-	readFun func(io.Reader) (int, error)
+	readFun func(*bufio.Reader) (int, error)
 }
 
 func (r read) PerformInstruction(f *Befunge) error {
@@ -181,18 +181,22 @@ func (n noop) PerformInstruction(f *Befunge) error {
 }
 
 var intWrite = write{writeFun: func(w io.Writer, a int) (int, error) {
-	return fmt.Fprintf(w, "%d ", a)
+	return fmt.Fprintf(w, "%d", a)
 }}
 
 var charWrite = write{writeFun: func(w io.Writer, a int) (int, error) {
 	return fmt.Fprint(w, string(rune(a)))
 }}
 
-var intRead = read{readFun: func(r io.Reader) (int, error) {
+var intRead = read{readFun: func(r *bufio.Reader) (int, error) {
 	for {
-		b, _, err1 := bufio.NewReader(r).ReadLine()
+		b, _, err1 := r.ReadLine()
 		// error reading from the Reader, return
 		if err1 != nil {
+			if err1 == io.EOF {
+				// Don't error for EOF, just return 0
+				return 0, nil
+			}
 			return 0, err1
 		}
 
@@ -205,9 +209,13 @@ var intRead = read{readFun: func(r io.Reader) (int, error) {
 	}
 }}
 
-var charRead = read{readFun: func(r io.Reader) (int, error) {
-	ch, _, err := bufio.NewReader(r).ReadRune()
+var charRead = read{readFun: func(r *bufio.Reader) (int, error) {
+	ch, _, err := r.ReadRune()
 	if err != nil {
+		if err == io.EOF {
+			// Don't error for EOF, just return 0
+			return 0, nil
+		}
 		return 0, err
 	}
 	return int(ch), nil
