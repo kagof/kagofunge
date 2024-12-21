@@ -1,4 +1,6 @@
 # kagofunge
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/kagof/kagofunge/test.yml)
+
 
 An interpreter & debugger written in Go for the Befunge-93 esoteric programming language.
 
