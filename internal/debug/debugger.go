@@ -52,10 +52,10 @@ func (d *Debugger) Step() (bool, error) {
 			panic(err)
 		}
 
-		if strings.Contains(str, "s") || strings.Contains(str, "S") {
-			d.stepMode = true
-		} else {
+		if strings.Contains(str, "c") || strings.Contains(str, "C") {
 			d.stepMode = false
+		} else {
+			d.stepMode = true
 		}
 	}
 	proceed, err := d.befunge.Step()
@@ -80,7 +80,7 @@ func (d *Debugger) printDebug() {
 
 %s: %+v
 %s: %s
-[%s to continue, %s to step, %s to exit]`,
+[%s to step, %s to continue, %s to exit]`,
 		bold.Sprint("x"),
 		d.befunge.InstructionPointer.X,
 		bold.Sprint("y"),
@@ -94,7 +94,7 @@ func (d *Debugger) printDebug() {
 		bold.Sprint("output"),
 		d.output.String(),
 		green.Sprint("return"),
-		green.Sprint("s"),
+		green.Sprint("c"),
 		green.Sprint("ctrl+c"),
 	)
 }
