@@ -210,15 +210,20 @@ var intRead = read{readFun: func(r *bufio.Reader) (int, error) {
 }}
 
 var charRead = read{readFun: func(r *bufio.Reader) (int, error) {
-	ch, _, err := r.ReadRune()
-	if err != nil {
-		if err == io.EOF {
-			// Don't error for EOF, just return 0
-			return 0, nil
+	for {
+		ch, _, err := r.ReadRune()
+		if err != nil {
+			if err == io.EOF {
+				// Don't error for EOF, just return 0
+				return 0, nil
+			}
+			return 0, err
 		}
-		return 0, err
+
+		if ch != '\n' && ch != '\r' {
+			return int(ch), nil
+		} // else ignore empty lines
 	}
-	return int(ch), nil
 }}
 
 func ParseInstruction(char rune) InstructionPerformer {
