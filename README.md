@@ -89,6 +89,7 @@ kagofunge debug hello-world.bf -o output.txt -i input.txt -b '[1,1]'
 | Shortcut | Name           | type        | Repeatable | Description                                                                                                            |
 |----------|----------------|-------------|------------|------------------------------------------------------------------------------------------------------------------------|
 | `-b`     | `--breakpoint` | stringArray | true       | Breakpoints to set in the program while executing. can be in the formats `(x,y)`, `(x y)`, `[x,y]`, `[x y]`, or `x,y`. |
+| `-s`     | `--speed`      | duration    | false      | If set, the program will progress automatically at the specified speed. Should be a duration. Eg 100ms, 1s             |s
 
 ### Debugging
 
@@ -100,7 +101,7 @@ There is a Terminal based debugger which can be used to step through the program
 
 The Go test suite can be executed by running
 
-```shell
+```sh
 go test ./...
 ```
 
@@ -111,7 +112,8 @@ Befunge-93 is an esoteric programming language created by [cpressey](https://cat
 Note that although the spec for Befunge-93 states that the program should only be 80x25, this interpreter does not impose such a restriction (which seems to be common among other implementations as well).
 
 An example "Hello World" program in Befunge-93 can look like:
-```befunge-93
+
+```Befunge
 >               v
 v"Hello, World!"<
 > #,:# _@

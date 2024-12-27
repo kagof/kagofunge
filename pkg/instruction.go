@@ -18,7 +18,7 @@ type stringMode struct {
 }
 
 func (s stringMode) PerformInstruction(f *Befunge) error {
-	f.stringMode = !f.stringMode
+	f.StringMode = !f.StringMode
 	return nil
 }
 
@@ -72,15 +72,15 @@ func (d dir) PerformInstruction(f *Befunge) error {
 }
 
 type conditionalDir struct {
-	zeroDir *Vector2
-	elseDir *Vector2
+	zeroDir func() *Vector2
+	elseDir func() *Vector2
 }
 
 func (d conditionalDir) PerformInstruction(f *Befunge) error {
 	if f.stackPop() == 0 {
-		f.delta = d.zeroDir
+		f.delta = d.zeroDir()
 	} else {
-		f.delta = d.elseDir
+		f.delta = d.elseDir()
 	}
 	return nil
 }
@@ -89,7 +89,7 @@ type dup struct {
 }
 
 func (d dup) PerformInstruction(f *Befunge) error {
-	f.Stack.Push(f.stackPeek())
+	f.Stack.Push(f.StackPeek())
 	return nil
 }
 
@@ -301,13 +301,13 @@ func ParseInstruction(char rune) InstructionPerformer {
 		}}
 	case char == '_':
 		return conditionalDir{
-			zeroDir: XPos(),
-			elseDir: XNeg(),
+			zeroDir: XPos,
+			elseDir: XNeg,
 		}
 	case char == '|':
 		return conditionalDir{
-			zeroDir: YPos(),
-			elseDir: YNeg(),
+			zeroDir: YPos,
+			elseDir: YNeg,
 		}
 	case char == '"':
 		return stringMode{}

@@ -11,7 +11,7 @@ type Befunge struct {
 	Stack              *Stack[int]
 	Torus              *Torus
 	InstructionPointer *Vector2
-	stringMode         bool
+	StringMode         bool
 	delta              *Vector2
 	halted             bool
 }
@@ -24,10 +24,14 @@ func NewBefunge(s string, w io.Writer, r io.Reader) *Befunge {
 		Stack:              NewStack[int](),
 		Torus:              torus,
 		InstructionPointer: NewVector2(0, 0),
-		stringMode:         false,
+		StringMode:         false,
 		delta:              XPos(),
 		halted:             false,
 	}
+}
+
+func (bf *Befunge) CurrentChar() rune {
+	return bf.Torus.CharAt(bf.InstructionPointer.X, bf.InstructionPointer.Y)
 }
 
 func (f *Befunge) stackPop() int {
@@ -38,7 +42,7 @@ func (f *Befunge) stackPop() int {
 	return 0
 }
 
-func (f *Befunge) stackPeek() int {
+func (f *Befunge) StackPeek() int {
 	v, b := f.Stack.Peek()
 	if b {
 		return v
@@ -48,8 +52,8 @@ func (f *Befunge) stackPeek() int {
 
 func (f *Befunge) Step() (bool, error) {
 	var err error
-	char := f.Torus.CharAt(f.InstructionPointer.X, f.InstructionPointer.Y)
-	if f.stringMode && char != '"' {
+	char := f.CurrentChar()
+	if f.StringMode && char != '"' {
 		f.Stack.Push(int(char))
 	} else {
 		instruction := ParseInstruction(char)

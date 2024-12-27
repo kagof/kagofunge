@@ -6,6 +6,7 @@ import (
 	"github.com/kagof/kagofunge/pkg"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"time"
 )
 
 var debugCmd = &cobra.Command{
@@ -53,8 +54,13 @@ func getDebugger(flags pflag.FlagSet, args []string) (pkg.Stepper, error) {
 	if err != nil {
 		return nil, err
 	}
+	var speed time.Duration
+	speed, err = flags.GetDuration("speed")
+	if err != nil {
+		return nil, err
+	}
 
-	befunge := debug.NewDebugger(program, outputFile, inputFile, breakpoints)
+	befunge := debug.NewDebugger(program, outputFile, inputFile, breakpoints, speed)
 	return befunge, nil
 }
 
@@ -77,4 +83,10 @@ func init() {
 		`Breakpoints to set in the program while 
 executing. can be in the formats (x,y), (x y), 
 [x,y], [x y], or x,y.`)
+	debugCmd.Flags().DurationP("speed",
+		"s",
+		0,
+		`If set, the program will progress automatically
+at the specified speed. Should be a duration. 
+Eg 100ms, 1s`)
 }
