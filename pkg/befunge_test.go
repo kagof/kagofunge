@@ -52,6 +52,18 @@ func TestBefunge(t *testing.T) {
 			"3",
 			"3", // dividing by zero should ask the user what it should equal
 		},
+		{
+			"g_oob",
+			"1-g.@",
+			"",
+			"0", // getting from out of bounds should not wrap, but should return 0
+		},
+		{
+			"p_oob",
+			"\" \"02-0p#@ #.<",
+			"",
+			"0", // putting out of bounds should not wrap, but should just discard
+		},
 	}
 
 	for _, test := range cases {

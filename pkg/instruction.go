@@ -137,6 +137,9 @@ type put struct {
 
 func (p put) PerformInstruction(f *Befunge) error {
 	y, x, v := f.stackPop(), f.stackPop(), rune(f.stackPop())
+	if y >= f.Torus.Height || y < 0 || x >= f.Torus.Width || x < 0 {
+		return nil
+	}
 	f.Torus.SetCharAt(x, y, v)
 	return nil
 }
@@ -146,6 +149,9 @@ type get struct {
 
 func (g get) PerformInstruction(f *Befunge) error {
 	y, x := f.stackPop(), f.stackPop()
+	if y >= f.Torus.Height || y < 0 || x >= f.Torus.Width || x < 0 {
+		return nil
+	}
 	f.Stack.Push(int(f.Torus.CharAt(x, y)))
 	return nil
 }
