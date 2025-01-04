@@ -28,23 +28,39 @@ func (t *Torus) SetCharAt(x int, y int, v rune) {
 	t.Chars[t.ModHeight(y)][t.ModWidth(x)] = v
 }
 
-func NewTorus(s string) *Torus {
+func NewTorus(s string, numLines int, numColumns int) *Torus {
 	lines := strings.FieldsFunc(strings.ReplaceAll(s, "\r", ""), func(r rune) bool { return r == '\n' })
-	var longestLine int = 0
-	for _, line := range lines {
-		numRunes := utf8.RuneCountInString(line)
-		if numRunes > longestLine {
-			longestLine = numRunes
+	if numLines > 0 {
+		if len(lines) > numLines {
+			lines = lines[:numLines]
+		} else {
+			for len(lines) < numLines {
+				lines = append(lines, "")
+			}
+		}
+	}
+	var longestLine = 0
+	if numColumns > 0 {
+		longestLine = numColumns
+	} else {
+		for _, line := range lines {
+			numRunes := utf8.RuneCountInString(line)
+			if numRunes > longestLine {
+				longestLine = numRunes
+			}
 		}
 	}
 	chars := internal.MapSlice(lines, func(line string) []rune {
-		return []rune(pad(line, longestLine, ' '))
+		return []rune(padOrTruncate(line, longestLine, ' '))
 	})
 
 	return &Torus{Chars: chars, Width: longestLine, Height: len(lines)}
 }
 
-func pad(s string, size int, padVal rune) string {
+func padOrTruncate(s string, size int, padVal rune) string {
+	if utf8.RuneCountInString(s) > size {
+		return s[:size] //truncate if needed
+	}
 	if utf8.RuneCountInString(s) < size {
 		return s + strings.Repeat(string(padVal), size-utf8.RuneCountInString(s))
 	}

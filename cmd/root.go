@@ -3,6 +3,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"github.com/kagof/kagofunge/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"io"
@@ -45,12 +46,24 @@ func init() {
 
 	rootCmd.PersistentFlags().StringP("output", "o", "", "Output file path. Default: stdout")
 	rootCmd.PersistentFlags().StringP("input", "i", "", "Output file path. Default: stdin")
+
 	rootCmd.PersistentFlags().BoolP("inline",
 		"I",
 		false,
 		`If set, then the <program> is interpreted as an inline 
 Befunge-93 program, otherwise it is interpreted as a 
 path to a Befunge-93 program file.`)
+
+	rootCmd.PersistentFlags().StringP("config-file",
+		"C",
+		"",
+		`Config file path. Default: $KAGOFUNGE_CONFIG_FILE or 
+$HOME/.kgf/config.yml`)
+	rootCmd.PersistentFlags().StringToStringP("config",
+		"c",
+		nil,
+		"Override specific config values as key=value pairs.")
+
 	err := rootCmd.MarkPersistentFlagFilename("output")
 	if err != nil {
 		panic(err)
@@ -59,6 +72,23 @@ path to a Befunge-93 program file.`)
 	if err != nil {
 		panic(err)
 	}
+	err = rootCmd.MarkPersistentFlagFilename("config")
+	if err != nil {
+		panic(err)
+	}
+}
+
+func getConfig(flags pflag.FlagSet) (*config.Config, error) {
+	path, err := flags.GetString("config-file")
+	if err != nil {
+		return nil, err
+	}
+	overrides, err := flags.GetStringToString("config")
+	if err != nil {
+		return nil, err
+	}
+
+	return config.GetConfig(path, overrides)
 }
 
 func getOutputFile(flags pflag.FlagSet) (io.Writer, error) {
@@ -116,21 +146,25 @@ func getProgram(flags pflag.FlagSet, arg string) (string, error) {
 	return program, nil
 }
 
-func getGlobals(flags pflag.FlagSet, args []string) (string, io.Writer, io.Reader, error) {
+func getGlobals(flags pflag.FlagSet, args []string) (*config.Config, string, io.Writer, io.Reader, error) {
+	config, err := getConfig(flags)
+	if err != nil {
+		return nil, "", nil, nil, err
+	}
 	outputFile, err := getOutputFile(flags)
 	if err != nil {
-		return "", nil, nil, err
+		return nil, "", nil, nil, err
 	}
 
 	inputFile, err2 := getInputFile(flags)
 	if err2 != nil {
-		return "", nil, nil, err2
+		return nil, "", nil, nil, err2
 	}
 
 	program, err3 := getProgram(flags, args[0])
 	if err3 != nil {
-		return "", nil, nil, err3
+		return nil, "", nil, nil, err3
 	}
 
-	return program, outputFile, inputFile, nil
+	return config, program, outputFile, inputFile, nil
 }

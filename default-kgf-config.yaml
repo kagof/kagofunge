@@ -1,0 +1,14 @@
+$schema: https://raw.githubusercontent.com/kagof/kagofunge/main/kagofunge-config.schema.json
+interpreter:
+  divide-by-zero-behaviour: PROMPT_FOR_INPUT
+  modulus-by-zero-behaviour: PROMPT_FOR_INPUT
+  put-out-of-bounds-behaviour: NO_OP
+  get-out-of-bounds-behaviour: ZERO
+  enforce-torus-size-restriction: false
+  torus-size-restriction-width: 80
+  torus-size-restriction-height: 25
+debugger:
+  show-torus: true
+  show-torus-coordinates: true
+  show-stack: true
+  enable-colors: true

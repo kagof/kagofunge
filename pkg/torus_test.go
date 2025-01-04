@@ -40,7 +40,7 @@ func TestTorus_parse(t *testing.T) {
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			torus := NewTorus(test.str)
+			torus := NewTorus(test.str, -1, -1)
 			asserts.Equal(test.expectedWidth, torus.Width, "Width mismatch")
 			asserts.Equal(test.expectedHeight, torus.Height, "Height mismatch")
 			asserts.Equal(test.expectedCharAtOrigin, torus.CharAt(0, 0), "CharAt(0, 0) mismatch")

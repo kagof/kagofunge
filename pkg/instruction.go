@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"github.com/kagof/kagofunge/config"
 	"io"
 	"math/rand/v2"
 	"strconv"
@@ -32,7 +33,8 @@ func (n num) PerformInstruction(f *Befunge) error {
 }
 
 type op2 struct {
-	operator func(int, int) (int, error)
+	operator      func(int, int) (int, error)
+	div0ConfigVal func(*Befunge) config.DivideByZeroBehaviour
 }
 
 func (o op2) PerformInstruction(f *Befunge) error {
@@ -40,8 +42,21 @@ func (o op2) PerformInstruction(f *Befunge) error {
 	res, err := o.operator(a, b)
 	if err != nil {
 		if strings.Contains(err.Error(), "divide by zero") {
-			// the befunge spec states that division/modulus by 0 should result in asking the user for desired outcome
-			return intRead.PerformInstruction(f)
+			switch o.div0ConfigVal(f) {
+			case config.Div0PromptForInput:
+				return intRead.PerformInstruction(f)
+			case config.Div0ReturnZero:
+				f.Stack.Push(0)
+				return nil
+			case config.Div0Reflect:
+				f.InstructionPointer = f.InstructionPointer.Multiply(-1)
+				return nil
+			case config.Div0Panic:
+				fallthrough
+			default:
+				f.halted = true
+				return err
+			}
 		} else {
 			return err
 		}
@@ -138,7 +153,20 @@ type put struct {
 func (p put) PerformInstruction(f *Befunge) error {
 	y, x, v := f.stackPop(), f.stackPop(), rune(f.stackPop())
 	if y >= f.Torus.Height || y < 0 || x >= f.Torus.Width || x < 0 {
-		return nil
+		switch f.Config.PutOutOfBoundsBehaviour {
+		case config.OobZero:
+			fallthrough // zero isn't meaningful for put
+		case config.OobNoOp:
+			return nil
+		case config.OobWrap:
+			f.Torus.SetCharAt(x, y, v)
+			return nil
+		case config.OobPanic:
+			fallthrough
+		default:
+			f.halted = true
+			return errors.New("put index out of bounds")
+		}
 	}
 	f.Torus.SetCharAt(x, y, v)
 	return nil
@@ -150,7 +178,21 @@ type get struct {
 func (g get) PerformInstruction(f *Befunge) error {
 	y, x := f.stackPop(), f.stackPop()
 	if y >= f.Torus.Height || y < 0 || x >= f.Torus.Width || x < 0 {
-		return nil
+		switch f.Config.GetOutOfBoundsBehaviour {
+		case config.OobZero:
+			f.Stack.Push(0)
+			return nil
+		case config.OobNoOp:
+			return nil
+		case config.OobWrap:
+			f.Stack.Push(int(f.Torus.CharAt(x, y)))
+			return nil
+		case config.OobPanic:
+			fallthrough
+		default:
+			f.halted = true
+			return errors.New("get index out of bounds")
+		}
 	}
 	f.Stack.Push(int(f.Torus.CharAt(x, y)))
 	return nil
@@ -249,19 +291,27 @@ func ParseInstruction(char rune) InstructionPerformer {
 			return a * b, nil
 		}}
 	case char == '/':
-		return op2{operator: func(a int, b int) (int, error) {
-			if a == 0 {
-				return 0, errors.New("divide by zero")
-			}
-			return b / a, nil
-		}}
+		return op2{
+			operator: func(a int, b int) (int, error) {
+				if a == 0 {
+					return 0, errors.New("divide by zero")
+				}
+				return b / a, nil
+			},
+			div0ConfigVal: func(f *Befunge) config.DivideByZeroBehaviour {
+				return f.Config.DivideByZeroBehaviour
+			}}
 	case char == '%':
-		return op2{operator: func(a int, b int) (int, error) {
-			if a == 0 {
-				return 0, errors.New("divide by zero")
-			}
-			return b % a, nil
-		}}
+		return op2{
+			operator: func(a int, b int) (int, error) {
+				if a == 0 {
+					return 0, errors.New("divide by zero")
+				}
+				return b % a, nil
+			},
+			div0ConfigVal: func(f *Befunge) config.DivideByZeroBehaviour {
+				return f.Config.ModulusByZeroBehaviour
+			}}
 	case char == '!':
 		return not{}
 	case char == '`':

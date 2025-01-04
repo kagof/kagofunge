@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/fatih/color"
+	"github.com/kagof/kagofunge/config"
 	"github.com/kagof/kagofunge/internal"
 	"github.com/kagof/kagofunge/pkg"
 	"io"
@@ -18,6 +19,7 @@ import (
 const clearAndReturn = "\033[2J\033[H"
 
 var (
+	noColor                   = color.New()
 	bold                      = color.New(color.Bold)
 	red                       = color.New(color.FgRed)
 	redBg                     = color.New(color.BgRed)
@@ -36,6 +38,7 @@ type Debugger struct {
 	outfile     io.Writer
 	autoSpeed   time.Duration
 	reader      bufio.Reader
+	config      config.DebuggerConfig
 	stepMode    bool
 	jumping     bool
 	hasPrinted  bool
@@ -45,7 +48,7 @@ type Debugger struct {
 	usingChanR  bool
 }
 
-func NewDebugger(s string, outFile io.Writer, inFile io.Reader, breakpoints []pkg.Vector2, speed time.Duration) *Debugger {
+func NewDebugger(c *config.Config, s string, outFile io.Writer, inFile io.Reader, breakpoints []pkg.Vector2, speed time.Duration) *Debugger {
 	b := new(strings.Builder)
 	stdinChan := make(chan string)
 	var fungeIn io.Reader
@@ -60,11 +63,12 @@ func NewDebugger(s string, outFile io.Writer, inFile io.Reader, breakpoints []pk
 	}
 
 	return &Debugger{
-		befunge:     pkg.NewBefunge(s, b, fungeIn),
+		befunge:     pkg.NewBefunge(c, s, b, fungeIn),
 		breakpoints: breakpoints,
 		output:      b,
 		outfile:     outFile,
 		reader:      *bufio.NewReader(os.Stdin),
+		config:      c.Debugger,
 		autoSpeed:   speed,
 		stdinChan:   stdinChan,
 		usingChanR:  usingChanR,
@@ -164,8 +168,9 @@ func (d *Debugger) Step() (bool, error) {
 func (d *Debugger) nextStepWillPromptForInput(char rune) bool {
 	return d.usingChanR &&
 		!d.befunge.StringMode &&
-		((char == '~' || char == '&') ||
-			(char == '/') || (char == '%') && d.befunge.StackPeek() == 0)
+		(char == '~' ||
+			char == '&' ||
+			((char == '/') || (char == '%')) && d.befunge.StackPeek() == 0)
 }
 
 func (d *Debugger) awaitingInputControls(char rune) string {
@@ -174,29 +179,53 @@ func (d *Debugger) awaitingInputControls(char rune) string {
 
 func (d *Debugger) slowSteppingControls() string {
 	return fmt.Sprintf("[%s to pause] ",
-		green.Sprint("return"))
+		d.colorOrNot(green, noColor).Sprint("return"))
 }
 
 func (d *Debugger) interruptedControls() string {
 	var jumpString string
 	if d.autoSpeed > 0 {
-		jumpString = fmt.Sprintf(", %s to jump to next breakpoint", green.Sprint("j"))
+		jumpString = fmt.Sprintf(", %s to jump to next breakpoint", d.colorOrNot(green, noColor).Sprint("j"))
 	}
 
 	return fmt.Sprintf("[%s to step, %s to continue%s, %s to exit] ",
-		green.Sprint("return"),
-		green.Sprint("c"),
+		d.colorOrNot(green, noColor).Sprint("return"),
+		d.colorOrNot(green, noColor).Sprint("c"),
 		jumpString,
-		green.Sprint("ctrl+c"))
+		d.colorOrNot(green, noColor).Sprint("ctrl+c"))
+}
+
+func (d *Debugger) torusOutput() string {
+	if d.config.ShowTorus {
+		return fmt.Sprintf(`%s:
+%s
+`,
+			bold.Sprint("torus"),
+			d.torusToString())
+	}
+	return ""
+}
+
+func (d *Debugger) stackOutput() string {
+	if d.config.ShowStack {
+		return fmt.Sprintf(`%s: [%s]
+`,
+			bold.Sprint("stack"),
+			strings.Join(internal.MapSlice(d.befunge.Stack.Values, func(t int) string {
+				var unicodeParen = ""
+				if unicode.IsPrint(rune(t)) {
+					unicodeParen = fmt.Sprintf(" (%c)", rune(t))
+				}
+				return fmt.Sprintf("%d%s", t, unicodeParen)
+			}), ", "))
+	}
+	return ""
 }
 
 func (d *Debugger) printDebug(action string) {
 	fmt.Printf(`%s%s: %d %s: %d %s: '%c'
 
-%s:
-%s
-
-%s: [%s]
+%s%s
 %s: %s
 %s`,
 		clearAndReturn,
@@ -206,16 +235,8 @@ func (d *Debugger) printDebug(action string) {
 		d.befunge.InstructionPointer.Y,
 		bold.Sprint("char"),
 		d.befunge.Torus.CharAt(d.befunge.InstructionPointer.X, d.befunge.InstructionPointer.Y),
-		bold.Sprint("torus"),
-		d.torusToString(),
-		bold.Sprint("stack"),
-		strings.Join(internal.MapSlice(d.befunge.Stack.Values, func(t int) string {
-			var unicodeParen = ""
-			if unicode.IsPrint(rune(t)) {
-				unicodeParen = fmt.Sprintf(" (%c)", rune(t))
-			}
-			return fmt.Sprintf("%d%s", t, unicodeParen)
-		}), ", "),
+		d.torusOutput(),
+		d.stackOutput(),
 		bold.Sprint("output"),
 		d.output.String(),
 		action,
@@ -225,12 +246,12 @@ func (d *Debugger) printDebug(action string) {
 func (d *Debugger) torusToString() string {
 	strBuilder := new(strings.Builder)
 	torus := d.befunge.Torus
-	strBuilder.WriteString(cyan.Sprint("╔"))
-	strBuilder.WriteString(cyan.Sprint(strings.Repeat("═", torus.Width)))
-	strBuilder.WriteString(cyan.Sprint("╗"))
+	strBuilder.WriteString(d.colorOrNot(cyan, noColor).Sprint("╔"))
+	strBuilder.WriteString(d.colorOrNot(cyan, noColor).Sprint(strings.Repeat("═", torus.Width)))
+	strBuilder.WriteString(d.colorOrNot(cyan, noColor).Sprint("╗"))
 	strBuilder.WriteString("\n")
 	for y, line := range torus.Chars {
-		strBuilder.WriteString(cyan.Sprint("║"))
+		strBuilder.WriteString(d.colorOrNot(cyan, noColor).Sprint("║"))
 		for x, char := range line {
 			currentPointer := *pkg.NewVector2(x, y)
 			out := string(char)
@@ -238,60 +259,69 @@ func (d *Debugger) torusToString() string {
 			isCursor := *d.befunge.InstructionPointer == currentPointer
 			if isBreakpoint && isCursor {
 				if char == ' ' {
-					out = redBgAndBoldAndUnderlined.Sprint(out)
+					out = d.colorOrNot(redBgAndBoldAndUnderlined, boldAndUnderlined).Sprint(out)
 				} else {
-					out = redAndBoldAndUnderlined.Sprint(out)
+					out = d.colorOrNot(redAndBoldAndUnderlined, boldAndUnderlined).Sprint(out)
 				}
 			} else if isBreakpoint {
 				if char == ' ' {
-					out = redBg.Sprint(out)
+					out = d.colorOrNot(redBg, noColor).Sprint(out)
 				} else {
-					out = red.Sprint(out)
+					out = d.colorOrNot(red, noColor).Sprint(out)
 				}
 			} else if isCursor {
 				out = boldAndUnderlined.Sprint(out)
 			}
 			strBuilder.WriteString(out)
 		}
-		strBuilder.WriteString(cyan.Sprint("║"))
-		strBuilder.WriteString(faint.Sprint(y))
+		strBuilder.WriteString(d.colorOrNot(cyan, noColor).Sprint("║"))
+		strBuilder.WriteString(d.colorOrNot(faint, noColor).Sprint(y))
 		strBuilder.WriteRune('\n')
 	}
-	strBuilder.WriteString(cyan.Sprint("╚"))
-	strBuilder.WriteString(cyan.Sprint(strings.Repeat("═", torus.Width)))
-	strBuilder.WriteString(cyan.Sprint("╝"))
-	strBuilder.WriteRune('\n')
-	var str0s strings.Builder
-	var str10s strings.Builder
-	var str100s strings.Builder
-	for i := range torus.Width {
-		mod10 := i % 10
-		mod100 := i % 100
-		str0s.WriteString(faint.Sprint(mod10))
-		if mod100 == 0 && i >= 100 {
-			str100s.WriteString(faint.Sprint((i / 100) % 10))
-		} else {
-			str100s.WriteString(" ")
+	strBuilder.WriteString(d.colorOrNot(cyan, noColor).Sprint("╚"))
+	strBuilder.WriteString(d.colorOrNot(cyan, noColor).Sprint(strings.Repeat("═", torus.Width)))
+	strBuilder.WriteString(d.colorOrNot(cyan, noColor).Sprint("╝"))
+	if d.config.ShowTorusCoordinates {
+		strBuilder.WriteRune('\n')
+		var str0s strings.Builder
+		var str10s strings.Builder
+		var str100s strings.Builder
+		cFaint := d.colorOrNot(faint, noColor)
+		for i := range torus.Width {
+			mod10 := i % 10
+			mod100 := i % 100
+			str0s.WriteString(cFaint.Sprint(mod10))
+			if mod100 == 0 && i >= 100 {
+				str100s.WriteString(cFaint.Sprint((i / 100) % 10))
+			} else {
+				str100s.WriteString(" ")
+			}
+			if mod10 == 0 && i >= 10 {
+				str10s.WriteString(cFaint.Sprint((i / 10) % 10))
+			} else {
+				str10s.WriteString(" ")
+			}
 		}
-		if mod10 == 0 && i >= 10 {
-			str10s.WriteString(faint.Sprint((i / 10) % 10))
-		} else {
-			str10s.WriteString(" ")
+		if torus.Width > 100 {
+			strBuilder.WriteString(" ")
+			strBuilder.WriteString(str100s.String())
+			strBuilder.WriteRune('\n')
 		}
-	}
-	if torus.Width > 100 {
+		if torus.Width > 10 {
+			strBuilder.WriteString(" ")
+			strBuilder.WriteString(str10s.String())
+			strBuilder.WriteRune('\n')
+		}
 		strBuilder.WriteString(" ")
-		strBuilder.WriteString(str100s.String())
-		strBuilder.WriteRune('\n')
+		strBuilder.WriteString(str0s.String())
 	}
-	if torus.Width > 10 {
-		strBuilder.WriteString(" ")
-		strBuilder.WriteString(str10s.String())
-		strBuilder.WriteRune('\n')
-	}
-	strBuilder.WriteString(" ")
-	strBuilder.WriteString(str0s.String())
 
 	return strBuilder.String()
+}
 
+func (d *Debugger) colorOrNot(c *color.Color, def *color.Color) *color.Color {
+	if d.config.EnableColors {
+		return c
+	}
+	return def
 }

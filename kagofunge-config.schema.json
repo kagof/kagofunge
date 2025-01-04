@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/kagof/kagofunge/refs/heads/main/kagofunge-config.schema.json",
+  "title": "Kagofunge Config",
+  "description": "Configuration file for the kagofunge Befunge-93 interpreter & debugger",
+  "properties": {
+    "interpreter": {
+      "type": "object",
+      "description": "Configuration for the behaviour of the Befunge-93 interpreter itself.",
+      "properties": {
+        "divide-by-zero-behaviour": {
+          "type": "string",
+          "description": "Behaviour when dividing by zero. The default for Befunge-93 is to prompt the user for a value, however other possibilities are to either push 0 onto the stack, reflect the instruction pointer, or panic (exit the program with an error).",
+          "enum": [
+            "PROMPT_FOR_INPUT",
+            "RETURN_ZERO",
+            "REFLECT",
+            "PANIC"
+          ]
+        },
+        "modulus-by-zero-behaviour": {
+          "type": "string",
+          "description": "Behaviour when performing modulus by zero. The default for Befunge-93 is to prompt the user for a value, however other possibilities are to either push 0 onto the stack, reflect the instruction pointer, or panic (exit the program with an error).",
+          "enum": [
+            "PROMPT_FOR_INPUT",
+            "RETURN_ZERO",
+            "REFLECT",
+            "PANIC"
+          ]
+        },
+        "put-out-of-bounds-behaviour": {
+          "type": "string",
+          "description": "Behaviour when performing the p command with coordinates that lie outside of the torus. The default behaviour for Befunge-93 is to do nothing, however you can also choose to wrap the value across the torus, or panic (exit the program with an error). Note that ZERO is meaningless for p and will behave the same as NO_OP.",
+          "enum": [
+            "NO_OP",
+            "ZERO",
+            "WRAP",
+            "PANIC"
+          ]
+        },
+        "get-out-of-bounds-behaviour": {
+          "type": "string",
+          "description": "Behaviour when performing the g command with coordinates that lie outside of the torus. The default behaviour for Befunge-93 is to add 0 to the stack, however you can also choose to do nothing, wrap the value across the torus, or panic (exit the program with an error).",
+          "enum": [
+            "NO_OP",
+            "ZERO",
+            "WRAP",
+            "PANIC"
+          ]
+        },
+        "enforce-torus-size-restriction": {
+          "type": "boolean",
+          "description": "Whether or not to enforce the torus size restriction. Traditionally, Befunge-93 programs can only be 80x25 characters, though many interpreters ignore this restriction (including this one by default). If set to true, then program inputs will be truncated or padded to fit the size restriction."
+        },
+        "torus-size-restriction-width": {
+          "type": "integer",
+          "description": "If enforce-torus-size-restriction is true, the width to restrict the torus to.",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "torus-size-restriction-height": {
+          "type": "integer",
+          "description": "If enforce-torus-size-restriction is true, the height to restrict the torus to.",
+          "minimum": 1,
+          "maximum": 2147483647
+        }
+      }
+    },
+    "debugger": {
+      "type": "object",
+      "description": "Configuration for the debugger.",
+      "properties": {
+        "show-torus": {
+          "type": "boolean",
+          "description": "Whether or not to show the code torus in the debugger output."
+        },
+        "show-torus-coordinates": {
+          "type": "boolean",
+          "description": "If showing the code torus, whether or not to show the coordinates."
+        },
+        "show-stack": {
+          "type": "boolean",
+          "description": "Whether or not to show the stack in the debugger output."
+        },
+        "enable-colors": {
+          "type": "boolean",
+          "description": "Whether or not to use ANSI colors in the debugger output."
+        }
+      }
+    }
+  }
+}

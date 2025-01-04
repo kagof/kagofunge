@@ -1,6 +1,7 @@
 package pkg
 
 import (
+	"github.com/kagof/kagofunge/config"
 	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
@@ -66,11 +67,12 @@ func TestBefunge(t *testing.T) {
 		},
 	}
 
+	cfg := config.DefaultConfig()
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 			var writer strings.Builder
-			befunge := NewBefunge(test.funge, &writer, strings.NewReader(test.input))
+			befunge := NewBefunge(&cfg, test.funge, &writer, strings.NewReader(test.input))
 
 			var hasNext = true
 			var err error

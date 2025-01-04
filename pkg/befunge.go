@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"bufio"
+	"github.com/kagof/kagofunge/config"
 	"io"
 )
 
@@ -10,19 +11,29 @@ type Befunge struct {
 	reader             *bufio.Reader
 	Stack              *Stack[int]
 	Torus              *Torus
+	Config             config.InterpreterConfig
 	InstructionPointer *Vector2
 	StringMode         bool
 	delta              *Vector2
 	halted             bool
 }
 
-func NewBefunge(s string, w io.Writer, r io.Reader) *Befunge {
-	torus := NewTorus(s)
+func NewBefunge(c *config.Config, s string, w io.Writer, r io.Reader) *Befunge {
+	var maxLines, maxColumns int
+	if c.Interpreter.EnforceTorusSizeRestriction {
+		maxLines = c.Interpreter.TorusSizeRestrictionHeight
+		maxColumns = c.Interpreter.TorusSizeRestrictionWidth
+	} else {
+		maxLines = -1
+		maxColumns = -1
+	}
+	torus := NewTorus(s, maxLines, maxColumns)
 	return &Befunge{
 		writer:             w,
 		reader:             bufio.NewReader(r),
 		Stack:              NewStack[int](),
 		Torus:              torus,
+		Config:             c.Interpreter,
 		InstructionPointer: NewVector2(0, 0),
 		StringMode:         false,
 		delta:              XPos(),
@@ -30,8 +41,8 @@ func NewBefunge(s string, w io.Writer, r io.Reader) *Befunge {
 	}
 }
 
-func (bf *Befunge) CurrentChar() rune {
-	return bf.Torus.CharAt(bf.InstructionPointer.X, bf.InstructionPointer.Y)
+func (f *Befunge) CurrentChar() rune {
+	return f.Torus.CharAt(f.InstructionPointer.X, f.InstructionPointer.Y)
 }
 
 func (f *Befunge) stackPop() int {

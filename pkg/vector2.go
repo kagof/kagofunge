@@ -31,6 +31,10 @@ func (v *Vector2) Add(other *Vector2) *Vector2 {
 	return NewVector2(v.X+other.X, v.Y+other.Y)
 }
 
+func (v *Vector2) Multiply(factor int) *Vector2 {
+	return NewVector2(v.X*factor, v.Y*factor)
+}
+
 // ScaleToOne converts eg (-2, 4) to (-1, 1), and (3, 0) to (1, 0). This does not necessarily
 // convert to a unit vector of magnitude 1, rather converts each dimension to 1 if it is positive, -1 if it is negative,
 // or 0 if it is 0

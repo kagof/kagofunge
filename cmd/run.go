@@ -27,6 +27,7 @@ func runRunE(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	cmd.SilenceUsage = true // don't print usage for errors past this point
 	hasNext := true
 	for hasNext {
 		hasNext, err = befunge.Step()
@@ -39,11 +40,11 @@ func runRunE(cmd *cobra.Command, args []string) error {
 }
 
 func getBefunge(flags pflag.FlagSet, args []string) (pkg.Stepper, error) {
-	program, outputFile, inputFile, err := getGlobals(flags, args)
+	config, program, outputFile, inputFile, err := getGlobals(flags, args)
 	if err != nil {
 		return nil, err
 	}
-	befunge := pkg.NewBefunge(program, outputFile, inputFile)
+	befunge := pkg.NewBefunge(config, program, outputFile, inputFile)
 	return befunge, nil
 }
 
